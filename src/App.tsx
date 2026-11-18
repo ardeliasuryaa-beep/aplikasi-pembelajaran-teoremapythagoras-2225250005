@@ -1,1029 +1,734 @@
+
 import { useState } from "react";
 import "./App.css";
 
 type Page =
-  | "home"
-  | "pretest"
+  | "beranda"
   | "materi"
-  | "eksplorasi"
+  | "sisi"
   | "latihan"
+  | "tutor"
   | "kalkulator"
-  | "game"
-  | "posttest"
   | "refleksi";
 
-type Question = {
-  question: string;
-  options: string[];
-  answer: number;
-  explanation: string;
+type ChatMessage = {
+  role: "user" | "tutor";
+  text: string;
 };
 
-const questions: Question[] = [
-  {
-    question:
-      "Sebuah segitiga memiliki sisi 6 cm, 8 cm, dan 10 cm. Sisi manakah yang merupakan sisi miring?",
-    options: ["6 cm", "8 cm", "10 cm", "Semua sisi"],
-    answer: 2,
-    explanation:
-      "Sisi miring adalah sisi yang berhadapan dengan sudut 90° dan merupakan sisi terpanjang, yaitu 10 cm.",
-  },
-  {
-    question:
-      "Jika a = 6 dan b = 8 pada segitiga siku-siku, berapakah nilai c?",
-    options: ["10", "12", "14", "16"],
-    answer: 0,
-    explanation: "6² + 8² = 36 + 64 = 100, sehingga c = √100 = 10.",
-  },
-  {
-    question:
-      "Manakah hubungan yang benar pada segitiga siku-siku?",
-    options: ["a + b = c", "a² + b² = c²", "a² + c² = b²", "a + b + c = 90"],
-    answer: 1,
-    explanation:
-      "Teorema Pythagoras menyatakan bahwa a² + b² = c².",
-  },
-  {
-    question:
-      "Sebuah taman berukuran panjang 12 m dan lebar 5 m. Berapa panjang diagonal taman?",
-    options: ["13 m", "15 m", "17 m", "20 m"],
-    answer: 0,
-    explanation:
-      "12² + 5² = 144 + 25 = 169, sehingga diagonal = √169 = 13 m.",
-  },
-  {
-    question:
-      "Seorang siswa mengatakan 6² + 8² = 14². Apa kesalahannya?",
-    options: [
-      "Salah menggunakan konsep kuadrat",
-      "Tidak ada kesalahan",
-      "Salah menentukan sudut",
-      "Salah menggambar segitiga",
-    ],
-    answer: 0,
-    explanation:
-      "6² + 8² = 100, sedangkan 14² = 196. Kesalahannya adalah menganggap (a + b)² = a² + b².",
-  },
-];
-
 function App() {
-  const [name, setName] = useState(
-    localStorage.getItem("geoline-name") || ""
-  );
-  const [started, setStarted] = useState(
-    Boolean(localStorage.getItem("geoline-name"))
-  );
+  const [page, setPage] = useState<Page>("beranda");
+  const [userName, setUserName] = useState("Pelajar");
 
-  const [page, setPage] = useState<Page>("home");
-  const [sound, setSound] = useState(true);
-
-  const [pretestScore, setPretestScore] = useState<number | null>(null);
-  const [posttestScore, setPosttestScore] = useState<number | null>(null);
-
-  const [answer, setAnswer] = useState<number | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
-
-  const [exerciseIndex, setExerciseIndex] = useState(0);
-  const [exerciseScore, setExerciseScore] = useState(0);
-
+  // KALKULATOR
   const [a, setA] = useState("");
   const [b, setB] = useState("");
-  const [calcResult, setCalcResult] = useState("");
-
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameIndex, setGameIndex] = useState(0);
-  const [gameScore, setGameScore] = useState(0);
-  const [gameAnswer, setGameAnswer] = useState<number | null>(null);
-
-  const [reflection, setReflection] = useState("");
-
-  const menu = [
-    { id: "home", icon: "⌂", label: "Beranda" },
-    { id: "pretest", icon: "◇", label: "Pre-Test" },
-    { id: "materi", icon: "▤", label: "Materi Belajar" },
-    { id: "eksplorasi", icon: "△", label: "Eksplorasi" },
-    { id: "latihan", icon: "✎", label: "Latihan Soal" },
-    { id: "kalkulator", icon: "＋", label: "Kalkulator" },
-    { id: "game", icon: "✦", label: "Game Tantangan" },
-    { id: "posttest", icon: "✓", label: "Post-Test" },
-    { id: "refleksi", icon: "♡", label: "Refleksi" },
-  ] as const;
-
-  const startApp = () => {
-    const clean = name.trim();
-
-    if (!clean) return;
-
-    localStorage.setItem("geoline-name", clean);
-    setName(clean);
-    setStarted(true);
-  };
-
-  const changeName = () => {
-    localStorage.removeItem("geoline-name");
-    setName("");
-    setStarted(false);
-    setPage("home");
-  };
+  const [result, setResult] = useState<number | null>(null);
 
   const calculate = () => {
     const x = Number(a);
     const y = Number(b);
 
-    if (!x || !y) {
-      setCalcResult("Masukkan nilai a dan b terlebih dahulu.");
+    if (
+      !a ||
+      !b ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x <= 0 ||
+      y <= 0
+    ) {
+      setResult(null);
       return;
     }
 
-    const result = Math.sqrt(x * x + y * y);
-
-    setCalcResult(`c = ${Number(result.toFixed(2))}`);
+    setResult(Number(Math.sqrt(x * x + y * y).toFixed(2)));
   };
 
-  const answerExercise = (index: number) => {
-    setAnswer(index);
-    setShowExplanation(true);
+  // TUTOR PINTAR
+  const [question, setQuestion] = useState("");
+  const [thinking, setThinking] = useState(false);
 
-    if (index === questions[exerciseIndex].answer) {
-      setExerciseScore((score) => score + 1);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "tutor",
+      text:
+        "Halo! Selamat datang di Tutor Pintar GEOLINE! 🌸\n\n" +
+        "Aku siap menemanimu belajar Teorema Pythagoras. " +
+        "Kamu bebas bertanya menggunakan bahasamu sendiri. " +
+        "Apa yang ingin kamu pahami hari ini?"
     }
-  };
+  ]);
 
-  const nextExercise = () => {
-    setAnswer(null);
-    setShowExplanation(false);
+  const answerQuestion = (raw: string): string => {
+    const q = raw.toLowerCase()
+      .replace(/[?!.,]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
-    if (exerciseIndex < questions.length - 1) {
-      setExerciseIndex((index) => index + 1);
-    } else {
-      setExerciseIndex(0);
+    const has = (...words: string[]) =>
+      words.some(word => q.includes(word));
+
+    const topics = [
+      "pythagoras", "segitiga", "sisi", "miring",
+      "hipotenusa", "rumus", "kuadrat", "akar",
+      "siku", "derajat", "cm", "meter", "panjang",
+      "luas", "keliling", "hitung", "contoh", "soal",
+      "matematika", "persegi", "diagonal", "bilangan",
+      "jarak", "a2", "b2", "c2", "6", "8", "5",
+      "10", "12", "13", "15", "sudut"
+    ];
+
+    const relevant = topics.some(word => q.includes(word));
+
+    if (has("halo", "hai", "assalamualaikum")) {
+      return "Halo juga! 🌷 Senang bertemu denganmu. Ada yang ingin kamu tanyakan tentang Teorema Pythagoras?";
     }
-  };
 
-  const startGame = () => {
-    setGameStarted(true);
-    setGameIndex(0);
-    setGameScore(0);
-    setGameAnswer(null);
-  };
-
-  const answerGame = (index: number) => {
-    setGameAnswer(index);
-
-    if (index === questions[gameIndex].answer) {
-      setGameScore((score) => score + 10);
+    if (has("terima kasih", "makasih", "thanks")) {
+      return "Sama-sama! 💗 Tetap semangat belajar ya. Ingat, memahami proses berpikir jauh lebih penting daripada sekadar mendapatkan jawaban.";
     }
-  };
 
-  const nextGame = () => {
-    setGameAnswer(null);
-
-    if (gameIndex < 4) {
-      setGameIndex((index) => index + 1);
-    } else {
-      setGameStarted(false);
+    if (!relevant) {
+      return "Maaf ya! 🌸 Tutor Pintar GEOLINE khusus membantu kamu mempelajari Teorema Pythagoras. Kamu bisa bertanya tentang segitiga siku-siku, sisi miring, rumus, cara menghitung, dan contoh soal. Yuk, kita kembali belajar matematika!";
     }
-  };
 
-  const renderHome = () => (
-    <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">PERSONAL LEARNING SPACE</span>
-          <h1>
-            Selamat belajar, <span>{name}.</span>
-          </h1>
-          <p>
-            Bangun pemahaman matematika melalui eksplorasi, pola, latihan,
-            dan penalaran.
-          </p>
-        </div>
-
-        <div className="profile">
-          {name.charAt(0).toUpperCase()}
-        </div>
-      </div>
-
-      <section className="hero">
-        <div className="hero-text">
-          <span className="eyebrow">GRADE VIII · RMT LEARNING PATH</span>
-
-          <h2>
-            Temukan hubungan
-            <br />
-            dalam Teorema Pythagoras.
-          </h2>
-
-          <p>
-            Jangan hanya menghafal rumus. Amati, temukan pola, jelaskan
-            alasanmu, lalu gunakan konsep untuk memecahkan masalah.
-          </p>
-
-          <button onClick={() => setPage("pretest")}>
-            Mulai Perjalanan →
-          </button>
-        </div>
-
-        <div className="hero-triangle">
-          <svg viewBox="0 0 240 190">
-            <polygon
-              points="35,150 35,30 205,150"
-              className="triangle-fill"
-            />
-            <line x1="35" y1="30" x2="35" y2="150" />
-            <line x1="35" y1="150" x2="205" y2="150" />
-            <line x1="35" y1="30" x2="205" y2="150" />
-
-            <text x="15" y="95">
-              a
-            </text>
-            <text x="115" y="173">
-              b
-            </text>
-            <text x="120" y="78">
-              c
-            </text>
-          </svg>
-        </div>
-      </section>
-
-      <div className="rmt-path">
-        <span className="eyebrow">RMT LEARNING PATH</span>
-
-        <div className="path-grid">
-          <div className="path-card">
-            <b>01</b>
-            <h3>Amati</h3>
-            <p>Mengenali informasi, bentuk, ukuran, dan situasi.</p>
-          </div>
-
-          <div className="path-card">
-            <b>02</b>
-            <h3>Hubungkan</h3>
-            <p>Mencari hubungan dan pola dari beberapa contoh.</p>
-          </div>
-
-          <div className="path-card">
-            <b>03</b>
-            <h3>Bangun Konsep</h3>
-            <p>Menghubungkan pola dengan simbol dan rumus.</p>
-          </div>
-
-          <div className="path-card">
-            <b>04</b>
-            <h3>Terapkan</h3>
-            <p>Menggunakan konsep dalam masalah baru.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="progress-card">
-        <div>
-          <span className="eyebrow">YOUR PROGRESS</span>
-          <h3>Perjalanan belajarmu</h3>
-          <p>
-            {pretestScore !== null
-              ? `Pre-Test: ${pretestScore}/5`
-              : "Mulai dari Pre-Test untuk mengetahui kemampuan awalmu."}
-          </p>
-        </div>
-
-        <strong>
-          {posttestScore !== null
-            ? `${Math.round((posttestScore / 5) * 100)}%`
-            : "0%"}
-        </strong>
-      </div>
-    </>
-  );
-
-  const renderPretest = () => (
-    <LearningPage
-      eyebrow="01 · INITIAL THINKING"
-      title="Pre-Test"
-      subtitle="Coba gunakan pengetahuan awalmu sebelum mempelajari konsep."
-    >
-      <div className="test-info">
-        <b>Tujuan Pre-Test</b>
-        <p>
-          Tidak perlu takut salah. Jawabanmu digunakan untuk melihat
-          pengetahuan awal sebelum pembelajaran.
-        </p>
-      </div>
-
-      <QuestionBox
-        question={questions[0]}
-        answer={answer}
-        onAnswer={(index) => {
-          setAnswer(index);
-          setShowExplanation(true);
-        }}
-        showExplanation={showExplanation}
-      />
-
-      {showExplanation && (
-        <button
-          className="primary-button"
-          onClick={() => {
-            setPretestScore(
-              answer === questions[0].answer ? 1 : 0
-            );
-            setAnswer(null);
-            setShowExplanation(false);
-            setPage("materi");
-          }}
-        >
-          Lanjut ke Materi →
-        </button>
-      )}
-    </LearningPage>
-  );
-
-  const renderMateri = () => (
-    <LearningPage
-      eyebrow="02 · BUILD THE CONCEPT"
-      title="Materi Teorema Pythagoras"
-      subtitle="Bangun konsep dari bentuk, hubungan, pola, dan simbol."
-    >
-      <div className="concept-card">
-        <span className="concept-number">01</span>
-        <h2>Segitiga Siku-Siku</h2>
-
-        <p>
-          Segitiga siku-siku adalah segitiga yang memiliki satu sudut
-          sebesar 90°.
-        </p>
-
-        <div className="large-triangle">
-          <svg viewBox="0 0 500 300">
-            <polygon
-              points="80,240 80,50 420,240"
-              className="triangle-fill"
-            />
-
-            <line x1="80" y1="50" x2="80" y2="240" />
-            <line x1="80" y1="240" x2="420" y2="240" />
-            <line x1="80" y1="50" x2="420" y2="240" />
-
-            <text x="55" y="150">
-              a
-            </text>
-            <text x="240" y="265">
-              b
-            </text>
-            <text x="250" y="125">
-              c
-            </text>
-          </svg>
-        </div>
-      </div>
-
-      <div className="concept-grid">
-        <div>
-          <span>a</span>
-          <h3>Sisi tegak</h3>
-          <p>Salah satu sisi yang membentuk sudut siku-siku.</p>
-        </div>
-
-        <div>
-          <span>b</span>
-          <h3>Sisi alas</h3>
-          <p>Sisi yang juga membentuk sudut 90°.</p>
-        </div>
-
-        <div>
-          <span>c</span>
-          <h3>Sisi miring</h3>
-          <p>Sisi terpanjang dan berhadapan dengan sudut 90°.</p>
-        </div>
-      </div>
-
-      <div className="discovery-card">
-        <span className="eyebrow">TEMUKAN HUBUNGANNYA</span>
-
-        <h2>
-          3² + 4² = 5²
-        </h2>
-
-        <p>
-          Coba perhatikan hubungan antara 3, 4, dan 5. Sekarang bandingkan
-          dengan 6, 8, dan 10.
-        </p>
-
-        <div className="equations">
-          <span>3² + 4² = 5²</span>
-          <span>6² + 8² = 10²</span>
-          <span>5² + 12² = 13²</span>
-        </div>
-
-        <button
-          className="primary-button"
-          onClick={() => setPage("eksplorasi")}
-        >
-          Temukan Polanya →
-        </button>
-      </div>
-    </LearningPage>
-  );
-
-  const renderEksplorasi = () => (
-    <LearningPage
-      eyebrow="03 · EXPLORE RELATIONSHIPS"
-      title="Eksplorasi & Temukan Pola"
-      subtitle="Ubah panjang sisi dan amati bagaimana hubungan antar sisi berubah."
-    >
-      <div className="explorer">
-        <div className="explorer-controls">
-          <label>
-            Nilai a
-            <input
-              type="number"
-              min="1"
-              value={a}
-              onChange={(e) => setA(e.target.value)}
-              placeholder="Contoh: 6"
-            />
-          </label>
-
-          <label>
-            Nilai b
-            <input
-              type="number"
-              min="1"
-              value={b}
-              onChange={(e) => setB(e.target.value)}
-              placeholder="Contoh: 8"
-            />
-          </label>
-        </div>
-
-        <div className="explorer-result">
-          {a && b ? (
-            <>
-              <span>Hubungan yang terbentuk</span>
-              <strong>
-                {a}² + {b}² = c²
-              </strong>
-
-              <p>
-                c = √({a}² + {b}²)
-              </p>
-
-              <button
-                className="primary-button"
-                onClick={() => {
-                  const x = Number(a);
-                  const y = Number(b);
-                  const c = Math.sqrt(x * x + y * y);
-
-                  setCalcResult(`Jika a = ${x} dan b = ${y}, maka c ≈ ${c.toFixed(2)}`);
-                }}
-              >
-                Hitung dan Amati
-              </button>
-
-              {calcResult && (
-                <div className="feedback">
-                  {calcResult}
-                </div>
-              )}
-            </>
-          ) : (
-            <strong>Masukkan nilai a dan b.</strong>
-          )}
-        </div>
-      </div>
-
-      <div className="pattern-card">
-        <span className="eyebrow">AMATI POLANYA</span>
-
-        <div className="pattern-table">
-          <div>
-            <b>a</b>
-            <b>b</b>
-            <b>c</b>
-          </div>
-
-          <div>
-            <span>3</span>
-            <span>4</span>
-            <span>5</span>
-          </div>
-
-          <div>
-            <span>6</span>
-            <span>8</span>
-            <span>10</span>
-          </div>
-
-          <div>
-            <span>5</span>
-            <span>12</span>
-            <span>13</span>
-          </div>
-        </div>
-
-        <h2>Apakah kamu menemukan hubungan yang sama?</h2>
-
-        <p>
-          Pada setiap contoh, kuadrat dua sisi yang membentuk sudut siku-siku
-          memiliki hubungan dengan kuadrat sisi miring.
-        </p>
-
-        <div className="formula">
-          a² + b² = c²
-        </div>
-      </div>
-    </LearningPage>
-  );
-
-  const renderLatihan = () => {
-    const current = questions[exerciseIndex];
-
-    return (
-      <LearningPage
-        eyebrow="04 · PRACTICE & REASONING"
-        title="Latihan Soal"
-        subtitle="Tidak hanya mencari jawaban. Jelaskan bagaimana kamu berpikir."
-      >
-        <div className="exercise-progress">
-          Soal {exerciseIndex + 1} dari {questions.length}
-        </div>
-
-        <QuestionBox
-          question={current}
-          answer={answer}
-          onAnswer={answerExercise}
-          showExplanation={showExplanation}
-        />
-
-        {showExplanation && (
-          <>
-            <div className="reasoning-box">
-              <span className="eyebrow">JELASKAN CARAKU</span>
-
-              <h3>
-                Mengapa kamu memilih jawaban tersebut?
-              </h3>
-
-              <textarea
-                placeholder="Tuliskan langkah atau alasanmu di sini..."
-              />
-            </div>
-
-            <button
-              className="primary-button"
-              onClick={nextExercise}
-            >
-              {exerciseIndex === questions.length - 1
-                ? "Ulangi Latihan"
-                : "Soal Berikutnya →"}
-            </button>
-          </>
-        )}
-
-        <div className="score-mini">
-          Skor latihan sementara: <strong>{exerciseScore}</strong>
-        </div>
-      </LearningPage>
-    );
-  };
-
-  const renderCalculator = () => (
-    <LearningPage
-      eyebrow="05 · MATHEMATICAL TOOL"
-      title="Kalkulator Pythagoras"
-      subtitle="Gunakan alat bantu untuk mengecek perhitunganmu."
-    >
-      <div className="calculator">
-        <div className="calc-title">
-          <span>△</span>
-          <h2>Cari sisi miring</h2>
-        </div>
-
-        <label>
-          Sisi a
-          <input
-            type="number"
-            value={a}
-            onChange={(e) => setA(e.target.value)}
-            placeholder="Masukkan a"
-          />
-        </label>
-
-        <label>
-          Sisi b
-          <input
-            type="number"
-            value={b}
-            onChange={(e) => setB(e.target.value)}
-            placeholder="Masukkan b"
-          />
-        </label>
-
-        <button className="primary-button" onClick={calculate}>
-          Hitung c
-        </button>
-
-        {calcResult && (
-          <div className="calculator-result">
-            <span>Hasil</span>
-            <strong>{calcResult}</strong>
-          </div>
-        )}
-
-        <div className="formula">
-          c = √(a² + b²)
-        </div>
-      </div>
-    </LearningPage>
-  );
-
-  const renderGame = () => {
-    if (!gameStarted) {
+    if (has("apa itu", "pengertian", "definisi", "maksud")) {
       return (
-        <LearningPage
-          eyebrow="06 · PLAY & CHALLENGE"
-          title="Tantangan Pythagoras"
-          subtitle="Gunakan pemahamanmu untuk mengumpulkan XP."
-        >
-          <div className="game-start">
-            <div className="game-icon">✦</div>
-
-            <h2>Siap menerima tantangan?</h2>
-
-            <p>
-              Jawab 5 soal. Setiap jawaban benar memberikan 10 XP.
-            </p>
-
-            <button
-              className="primary-button"
-              onClick={startGame}
-            >
-              Mulai Permainan →
-            </button>
-          </div>
-        </LearningPage>
+        "Teorema Pythagoras adalah aturan matematika yang menjelaskan hubungan antara panjang ketiga sisi segitiga siku-siku.\n\n" +
+        "Rumusnya adalah:\n\n" +
+        "a² + b² = c²\n\n" +
+        "Keterangan:\n" +
+        "• a dan b adalah sisi siku-siku.\n" +
+        "• c adalah sisi miring.\n\n" +
+        "Coba pikirkan, mengapa teorema ini digunakan pada segitiga siku-siku?"
       );
     }
 
-    const current = questions[gameIndex];
-
-    return (
-      <LearningPage
-        eyebrow={`CHALLENGE · ${gameIndex + 1}/5`}
-        title="Tantangan Pythagoras"
-        subtitle={`XP kamu: ${gameScore}`}
-      >
-        <QuestionBox
-          question={current}
-          answer={gameAnswer}
-          onAnswer={answerGame}
-          showExplanation={gameAnswer !== null}
-        />
-
-        {gameAnswer !== null && (
-          <button
-            className="primary-button"
-            onClick={nextGame}
-          >
-            {gameIndex === 4
-              ? `Selesai · ${gameScore} XP`
-              : "Lanjut →"}
-          </button>
-        )}
-      </LearningPage>
-    );
-  };
-
-  const renderPosttest = () => (
-    <LearningPage
-      eyebrow="07 · FINAL ASSESSMENT"
-      title="Post-Test"
-      subtitle="Uji kembali pemahamanmu setelah menyelesaikan pembelajaran."
-    >
-      <QuestionBox
-        question={questions[3]}
-        answer={answer}
-        onAnswer={(index) => {
-          setAnswer(index);
-          setShowExplanation(true);
-        }}
-        showExplanation={showExplanation}
-      />
-
-      {showExplanation && (
-        <div>
-          <div className="result-banner">
-            {answer === questions[3].answer
-              ? "Jawabanmu benar! Pemahamanmu semakin kuat."
-              : "Belum tepat. Baca kembali pembahasannya dan coba lagi."}
-          </div>
-
-          <button
-            className="primary-button"
-            onClick={() => {
-              setPosttestScore(
-                answer === questions[3].answer ? 5 : 2
-              );
-              setPage("refleksi");
-            }}
-          >
-            Lanjut ke Refleksi →
-          </button>
-        </div>
-      )}
-    </LearningPage>
-  );
-
-  const renderRefleksi = () => (
-    <LearningPage
-      eyebrow="08 · REFLECTION"
-      title="Refleksi Belajar"
-      subtitle="Pikirkan kembali bagaimana pemahamanmu terbentuk."
-    >
-      <div className="reflection-grid">
-        <div className="reflection-card">
-          <span>01</span>
-          <h3>Apa yang kamu pahami?</h3>
-          <p>
-            Jelaskan dengan bahasamu sendiri apa yang dimaksud dengan
-            Teorema Pythagoras.
-          </p>
-        </div>
-
-        <div className="reflection-card">
-          <span>02</span>
-          <h3>Hubungan apa yang kamu temukan?</h3>
-          <p>
-            Jelaskan hubungan antara sisi a, b, dan c.
-          </p>
-        </div>
-
-        <div className="reflection-card">
-          <span>03</span>
-          <h3>Bagaimana kamu mengetahui jawabanmu benar?</h3>
-          <p>
-            Jelaskan langkah atau alasan yang kamu gunakan.
-          </p>
-        </div>
-      </div>
-
-      <textarea
-        className="reflection-input"
-        value={reflection}
-        onChange={(e) => setReflection(e.target.value)}
-        placeholder="Tuliskan refleksimu di sini..."
-      />
-
-      <button
-        className="primary-button"
-        onClick={() => alert("Refleksi tersimpan. Bagus!")}
-      >
-        Simpan Refleksi
-      </button>
-
-      <div className="final-card">
-        <span className="eyebrow">YOUR LEARNING JOURNEY</span>
-        <h2>Hebat, {name}!</h2>
-
-        <p>
-          Kamu sudah melalui proses mengamati, menemukan hubungan,
-          membangun konsep, berlatih, dan menerapkan Teorema Pythagoras.
-        </p>
-      </div>
-    </LearningPage>
-  );
-
-  const renderPage = () => {
-    switch (page) {
-      case "home":
-        return renderHome();
-      case "pretest":
-        return renderPretest();
-      case "materi":
-        return renderMateri();
-      case "eksplorasi":
-        return renderEksplorasi();
-      case "latihan":
-        return renderLatihan();
-      case "kalkulator":
-        return renderCalculator();
-      case "game":
-        return renderGame();
-      case "posttest":
-        return renderPosttest();
-      case "refleksi":
-        return renderRefleksi();
+    if (has("sisi miring", "hipotenusa", "sisi terpanjang")) {
+      return (
+        "Sisi miring disebut juga hipotenusa. Sisi ini berada tepat di depan sudut 90° dan merupakan sisi terpanjang pada segitiga siku-siku.\n\n" +
+        "Coba perhatikan sebuah segitiga. Menurutmu, bagaimana cara menemukan sisi miring jika posisi gambarnya diputar?"
+      );
     }
+
+    if (has("sisi a", "sisi b", "sisi siku", "membedakan sisi")) {
+      return (
+        "Sisi a dan b merupakan dua sisi yang membentuk sudut 90°. Sementara itu, sisi c adalah sisi miring yang berada di depan sudut 90°.\n\n" +
+        "Ingat, nama a dan b dapat saling bertukar, tetapi c tetap merupakan sisi miring.\n\n" +
+        "Sekarang, bisakah kamu menjelaskan bagaimana cara menemukan sudut 90°?"
+      );
+    }
+
+    if (has("rumus", "a2", "b2", "c2")) {
+      return (
+        "Rumus utama Teorema Pythagoras adalah:\n\n" +
+        "a² + b² = c²\n\n" +
+        "Keterangan:\n" +
+        "• a = sisi siku-siku pertama.\n" +
+        "• b = sisi siku-siku kedua.\n" +
+        "• c = sisi miring.\n\n" +
+        "Jika mencari sisi miring, jumlahkan kuadrat kedua sisi siku-siku, kemudian akarkan hasilnya."
+      );
+    }
+
+    if (has("6") && has("8")) {
+      return (
+        "Yuk, kita kerjakan bersama! 🌷\n\n" +
+        "Diketahui:\n" +
+        "a = 6 cm\n" +
+        "b = 8 cm\n\n" +
+        "Gunakan rumus:\n" +
+        "c² = 6² + 8²\n" +
+        "c² = 36 + 64\n\n" +
+        "Sekarang coba hitung hasil penjumlahannya. Berapa hasil 36 + 64?"
+      );
+    }
+
+    if (has("akar", "akar kuadrat", "sqrt")) {
+      return (
+        "Akar kuadrat merupakan operasi kebalikan dari menguadratkan bilangan.\n\n" +
+        "Contohnya:\n" +
+        "√25 = 5 karena 5 × 5 = 25.\n\n" +
+        "Dalam Teorema Pythagoras, akar digunakan untuk memperoleh panjang sisi dari nilai kuadratnya.\n\n" +
+        "Coba sebutkan bilangan lain yang akar kuadratnya merupakan bilangan bulat!"
+      );
+    }
+
+    if (has("sudut", "90 derajat", "siku-siku")) {
+      return (
+        "Sudut siku-siku adalah sudut yang besarnya tepat 90°.\n\n" +
+        "Pada segitiga siku-siku, dua sisi membentuk sudut 90°. Sisi yang berada di depan sudut tersebut adalah sisi miring.\n\n" +
+        "Jika segitiga diputar, apakah besar sudut 90° akan berubah?"
+      );
+    }
+
+    if (has("luas", "persegi")) {
+      return (
+        "Teorema Pythagoras juga dapat dipahami melalui luas persegi yang dibangun pada ketiga sisi segitiga siku-siku.\n\n" +
+        "Luas persegi pada sisi a ditambah luas persegi pada sisi b sama dengan luas persegi pada sisi c.\n\n" +
+        "Hubungannya dinyatakan dengan a² + b² = c²."
+      );
+    }
+
+    if (has("bingung", "sulit", "susah", "tidak paham", "gak paham", "nggak ngerti")) {
+      return (
+        "Tidak apa-apa, kita belajar pelan-pelan! 💗\n\n" +
+        "Mulai dari konsep sederhana dahulu. Segitiga siku-siku memiliki satu sudut sebesar 90°.\n\n" +
+        "Coba jawab: apakah kamu sudah bisa membedakan dua sisi yang membentuk sudut 90° dengan sisi yang berada di depannya?"
+      );
+    }
+
+    if (has("contoh", "soal")) {
+      return (
+        "Yuk, coba soal berikut!\n\n" +
+        "Sebuah segitiga siku-siku mempunyai panjang sisi 5 cm dan 12 cm. Tentukan panjang sisi miringnya.\n\n" +
+        "Petunjuk:\n" +
+        "c² = 5² + 12²\n\n" +
+        "Coba hitung kuadrat kedua sisi terlebih dahulu!"
+      );
+    }
+
+    if (has("mencari", "menghitung", "bagaimana", "cara", "langkah")) {
+      return (
+        "Mari kita selesaikan secara bertahap! 🌸\n\n" +
+        "1. Perhatikan informasi pada soal.\n" +
+        "2. Tentukan sudut 90°.\n" +
+        "3. Kenali sisi yang sudah diketahui.\n" +
+        "4. Tentukan sisi yang ingin dicari.\n" +
+        "5. Gunakan rumus yang sesuai.\n" +
+        "6. Periksa kembali hasil perhitungan.\n\n" +
+        "Sekarang, informasi apa yang sudah diketahui dari soalmu?"
+      );
+    }
+
+    return (
+      "Pertanyaan menarik! 🌷\n\n" +
+      "Mari kita hubungkan pertanyaanmu dengan Teorema Pythagoras.\n\n" +
+      "Apakah kamu sedang membahas pengertian, rumus, sisi segitiga, atau perhitungan panjang sisi? Ceritakan sedikit lagi agar aku bisa membimbingmu."
+    );
   };
 
-  if (!started) {
-    return (
-      <main className="welcome-screen">
-        <div className="welcome-card">
-          <div className="brand-large">
-            <span>△</span>
-            <div>
-              <strong>
-                GEO<span>LINE</span>
-              </strong>
-              <small>MATHEMATICS LEARNING SPACE</small>
-            </div>
-          </div>
+  const askTutor = () => {
+    const text = question.trim();
 
-          <span className="eyebrow">WELCOME TO YOUR LEARNING SPACE</span>
+    if (!text || thinking) return;
 
-          <h1>
-            Belajar Pythagoras
-            <br />
-            dengan <span>cara berpikir.</span>
-          </h1>
+    setMessages(prev => [
+      ...prev,
+      { role: "user", text }
+    ]);
 
-          <p>
-            Eksplorasi konsep, temukan pola, jelaskan alasanmu, dan
-            selesaikan masalah matematika.
-          </p>
+    setQuestion("");
+    setThinking(true);
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              startApp();
-            }}
-          >
-            <label>Nama panggilanmu</label>
+    window.setTimeout(() => {
+      const response = answerQuestion(text);
 
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Tulis namamu..."
-              maxLength={24}
-            />
+      setMessages(prev => [
+        ...prev,
+        { role: "tutor", text: response }
+      ]);
 
-            <button
-              className="primary-button full"
-              type="submit"
-              disabled={!name.trim()}
-            >
-              Mulai Belajar →
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
+      setThinking(false);
+    }, 500);
+  };
+
+  const clearChat = () => {
+    setMessages([
+      {
+        role: "tutor",
+        text: "Halo! Mari mulai percakapan baru. Apa yang ingin kamu pelajari tentang Teorema Pythagoras?"
+      }
+    ]);
+  };
+
+  const menu: [Page, string, string][] = [
+    ["beranda", "⌂", "Beranda"],
+    ["materi", "▤", "Materi Belajar"],
+    ["sisi", "△", "Mengenal Sisi"],
+    ["latihan", "✓", "Latihan"],
+    ["tutor", "✦", "Tutor Pintar"],
+    ["kalkulator", "＋", "Kalkulator"],
+    ["refleksi", "♡", "Refleksi"]
+  ];
 
   return (
-    <main className="app">
-      <header className="topbar">
-        <button
-          className="logo"
-          onClick={() => setPage("home")}
-        >
-          <span>△</span>
+    <div className="geoline-app">
 
+      {/* HEADER */}
+      <header className="geoline-header">
+        <div className="brand">
+          <div className="brand-icon">G</div>
           <div>
-            <strong>
-              GEO<span>LINE</span>
-            </strong>
-            <small>MATHEMATICS LEARNING SPACE</small>
+            <h1>GEOLINE</h1>
+            <p>MATHEMATICS LEARNING SPACE</p>
           </div>
-        </button>
-
-        <div className="top-actions">
-          <button
-            onClick={() => setSound(!sound)}
-            className="sound-button"
-          >
-            {sound ? "♫" : "♪"}
-          </button>
         </div>
       </header>
 
-      <div className="layout">
-        <aside className="sidebar">
-          <div className="user-card">
-            <div className="avatar">
-              {name.charAt(0).toUpperCase()}
-            </div>
+      {/* LAYOUT */}
+      <div className="geoline-layout">
 
+        {/* SIDEBAR */}
+        <aside className="sidebar">
+
+          <div className="profile-card">
+            <div className="profile-icon">
+              {userName.charAt(0).toUpperCase()}
+            </div>
             <div>
-              <strong>{name}</strong>
+              <strong>{userName}</strong>
               <small>PELAJAR GEOLINE</small>
             </div>
           </div>
 
-          <span className="side-title">LEARNING SPACE</span>
+          <div className="sidebar-title">
+            LEARNING SPACE
+          </div>
 
           <nav>
-            {menu.map((item) => (
+            {menu.map(([id, icon, label]) => (
               <button
-                key={item.id}
-                className={
-                  page === item.id
-                    ? "side-link active"
-                    : "side-link"
-                }
-                onClick={() => {
-                  setPage(item.id);
-                  setAnswer(null);
-                  setShowExplanation(false);
-                }}
+                key={id}
+                className={page === id ? "nav-item active" : "nav-item"}
+                onClick={() => setPage(id)}
               >
-                <span>{item.icon}</span>
-                {item.label}
+                <span>{icon}</span>
+                {label}
               </button>
             ))}
           </nav>
 
-          <div className="side-footer">
-            <span>YOUR LEARNING JOURNEY</span>
-
-            <button onClick={changeName}>
-              Ganti nama pengguna →
-            </button>
+          <div className="journey">
+            <div className="sidebar-title">
+              YOUR LEARNING JOURNEY
+            </div>
+            <input
+              value={userName}
+              onChange={e => setUserName(e.target.value || "Pelajar")}
+              placeholder="Nama pengguna"
+            />
           </div>
+
         </aside>
 
-        <section className="content">{renderPage()}</section>
+        {/* MAIN CONTENT */}
+        <main className="main-content">
+
+          {/* BERANDA */}
+          {page === "beranda" && (
+            <section>
+              <div className="eyebrow">WELCOME TO GEOLINE</div>
+
+              <h2>
+                Belajar Teorema
+                <span> Pythagoras</span>
+                dengan cara yang bermakna.
+              </h2>
+
+              <p className="lead">
+                Eksplorasi konsep, pahami hubungan sisi segitiga siku-siku,
+                coba berbagai strategi, lalu jelaskan alasanmu.
+              </p>
+
+              <div className="home-grid">
+
+                <div className="learning-card">
+                  <div className="card-icon">△</div>
+                  <h3>Mulai dari konsep</h3>
+                  <p>
+                    Kenali segitiga siku-siku, sisi siku-siku,
+                    dan sisi miring sebelum menggunakan rumus.
+                  </p>
+                  <button onClick={() => setPage("materi")}>
+                    Pelajari materi →
+                  </button>
+                </div>
+
+                <div className="learning-card">
+                  <div className="card-icon">?</div>
+                  <h3>Coba dan jelaskan</h3>
+                  <p>
+                    Kerjakan masalah matematika dan pikirkan
+                    mengapa strategi tersebut dapat digunakan.
+                  </p>
+                  <button onClick={() => setPage("latihan")}>
+                    Mulai latihan →
+                  </button>
+                </div>
+
+                <div className="learning-card">
+                  <div className="card-icon">✦</div>
+                  <h3>Tutor Pintar</h3>
+                  <p>
+                    Tanyakan materi Pythagoras menggunakan
+                    bahasamu sendiri.
+                  </p>
+                  <button onClick={() => setPage("tutor")}>
+                    Tanya tutor →
+                  </button>
+                </div>
+
+              </div>
+
+              <div className="rmt-box">
+                <div className="rmt-label">
+                  RIGOROUS MATHEMATICAL THINKING
+                </div>
+                <h3>
+                  Bukan hanya mendapatkan jawaban,
+                  <span> tetapi memahami alasannya.</span>
+                </h3>
+                <p>
+                  Dalam GEOLINE, kamu diajak memahami konsep,
+                  menggunakan strategi, memeriksa hasil,
+                  dan menjelaskan alasan dari penyelesaianmu.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* MATERI */}
+          {page === "materi" && (
+            <section>
+              <div className="eyebrow">LEARN · 01</div>
+              <h2>
+                Mengenal Teorema <span>Pythagoras</span>
+              </h2>
+
+              <div className="material-card">
+                <h3>Segitiga siku-siku</h3>
+                <p>
+                  Segitiga siku-siku adalah segitiga
+                  yang memiliki satu sudut sebesar 90°.
+                </p>
+
+                <div className="triangle">
+                  <div className="triangle-shape">
+                    <span className="side-a">a</span>
+                    <span className="side-b">b</span>
+                    <span className="side-c">c</span>
+                    <span className="angle">90°</span>
+                  </div>
+                </div>
+
+                <div className="point-box">
+                  <strong>✦ Poin penting</strong>
+                  <p>
+                    Sisi yang berada di depan sudut 90°
+                    disebut sisi miring atau hipotenusa.
+                  </p>
+                </div>
+              </div>
+
+              <div className="formula-box">
+                <small>KONSEP UTAMA</small>
+                <strong>a² + b² = c²</strong>
+                <p>
+                  Jika dua sisi siku-siku diketahui,
+                  panjang sisi miring dapat dicari
+                  dengan Teorema Pythagoras.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* MENGENAL SISI */}
+          {page === "sisi" && (
+            <section>
+              <div className="eyebrow">EXPLORE · 02</div>
+              <h2>Mengenal <span>Sisi Segitiga</span></h2>
+
+              <p className="lead">
+                Perhatikan posisi sudut 90° sebelum menentukan
+                nama setiap sisi.
+              </p>
+
+              <div className="side-grid">
+
+                <div className="side-card">
+                  <div className="big-letter">a</div>
+                  <h3>Sisi siku-siku</h3>
+                  <p>
+                    Sisi yang membentuk sudut 90°
+                    dengan sisi siku-siku lainnya.
+                  </p>
+                </div>
+
+                <div className="side-card">
+                  <div className="big-letter">b</div>
+                  <h3>Sisi siku-siku</h3>
+                  <p>
+                    Sisi yang membentuk sudut 90°
+                    dengan sisi siku-siku lainnya.
+                  </p>
+                </div>
+
+                <div className="side-card highlighted">
+                  <div className="big-letter">c</div>
+                  <h3>Hipotenusa</h3>
+                  <p>
+                    Sisi terpanjang yang berada tepat
+                    di depan sudut 90°.
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="thinking-box">
+                <strong>💭 Coba pikirkan</strong>
+                <p>
+                  Jika posisi segitiga diputar, apakah nama sisi
+                  miring tetap ditentukan berdasarkan posisi gambar
+                  atau berdasarkan sudut 90°?
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* LATIHAN */}
+          {page === "latihan" && (
+            <section>
+              <div className="eyebrow">PRACTICE · 03</div>
+              <h2>Latihan <span>Matematika</span></h2>
+
+              <p className="lead">
+                Jangan hanya mencari hasil.
+                Pikirkan strategi yang kamu gunakan.
+              </p>
+
+              <div className="question-card">
+                <div className="question-number">SOAL 01</div>
+
+                <h3>
+                  Sebuah segitiga siku-siku memiliki
+                  sisi siku-siku 6 cm dan 8 cm.
+                  Berapa panjang sisi miringnya?
+                </h3>
+
+                <div className="answer-options">
+                  <button onClick={() => setPage("tutor")}>A. 9 cm</button>
+                  <button onClick={() => setPage("tutor")}>B. 10 cm</button>
+                  <button onClick={() => setPage("tutor")}>C. 12 cm</button>
+                  <button onClick={() => setPage("tutor")}>D. 14 cm</button>
+                </div>
+
+                <div className="hint">
+                  💡 Petunjuk: gunakan hubungan a² + b² = c².
+                </div>
+              </div>
+
+              <div className="thinking-box">
+                <strong>✦ Jelaskan strategimu</strong>
+                <p>
+                  Setelah mendapatkan jawaban, coba jelaskan
+                  langkah perhitunganmu dengan kata-katamu sendiri.
+                </p>
+                <textarea
+                  rows={5}
+                  placeholder="Tuliskan cara berpikirmu di sini..."
+                />
+              </div>
+            </section>
+          )}
+
+          {/* TUTOR PINTAR */}
+          {page === "tutor" && (
+            <section>
+              <div className="eyebrow">SMART TUTOR · 04</div>
+              <h2>Tutor Pintar <span>GEOLINE</span></h2>
+
+              <p className="lead">
+                Bebas bertanya menggunakan bahasamu sendiri.
+                Tutor akan membantumu memahami Teorema Pythagoras.
+              </p>
+
+              <div className="ai-tutor-card">
+
+                <div className="ai-header">
+                  <div className="ai-avatar">✦</div>
+                  <div>
+                    <h3>Tutor Pintar GEOLINE</h3>
+                    <p>Pendamping belajar Teorema Pythagoras</p>
+                  </div>
+                  <button
+                    onClick={clearChat}
+                    className="music-mute"
+                    aria-label="Mulai percakapan baru"
+                  >
+                    ↻
+                  </button>
+                </div>
+
+                <div className="ai-guidance">
+                  <strong>💡 Ayo belajar bersama!</strong>
+                  <p>
+                    Ketik pertanyaanmu sendiri.
+                    Kamu juga boleh bertanya jika masih bingung.
+                  </p>
+                </div>
+
+                <div className="chat-messages">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={
+                        message.role === "user"
+                          ? "chat-user"
+                          : "chat-tutor"
+                      }
+                    >
+                      <strong>
+                        {message.role === "user"
+                          ? userName
+                          : "✦ Tutor GEOLINE"}
+                      </strong>
+                      <p>{message.text}</p>
+                    </div>
+                  ))}
+
+                  {thinking && (
+                    <div className="chat-tutor">
+                      <strong>✦ Tutor GEOLINE</strong>
+                      <p>Sedang menyiapkan petunjuk...</p>
+                    </div>
+                  )}
+                </div>
+
+                <label className="ai-label">
+                  Pertanyaanmu
+                </label>
+
+                <textarea
+                  value={question}
+                  onChange={e => setQuestion(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      askTutor();
+                    }
+                  }}
+                  placeholder="Contoh: Kak, bagaimana cara mencari sisi miring?"
+                  rows={3}
+                />
+
+                <button
+                  className="ai-ask-button"
+                  onClick={askTutor}
+                  disabled={thinking || !question.trim()}
+                >
+                  {thinking
+                    ? "Tutor sedang berpikir..."
+                    : "✦ Kirim pertanyaan"}
+                </button>
+
+                <div className="rmt-box ai-rmt">
+                  <div className="rmt-label">RMT APPROACH</div>
+                  <h3>Belajar melalui proses berpikir.</h3>
+                  <p>
+                    Tutor memberikan pertanyaan pemantik dan petunjuk
+                    agar siswa memahami konsep, menyusun strategi,
+                    melakukan perhitungan, dan mengevaluasi jawaban.
+                  </p>
+                </div>
+
+              </div>
+            </section>
+          )}
+
+          {/* KALKULATOR */}
+          {page === "kalkulator" && (
+            <section>
+              <div className="eyebrow">TOOLS · 05</div>
+              <h2>Kalkulator <span>Pythagoras</span></h2>
+
+              <p className="lead">
+                Masukkan dua sisi siku-siku untuk mencari sisi miring.
+              </p>
+
+              <div className="calculator-card">
+                <label>
+                  Panjang sisi a
+                  <input
+                    type="number"
+                    min="0"
+                    value={a}
+                    onChange={e => setA(e.target.value)}
+                    placeholder="Contoh: 6"
+                  />
+                </label>
+
+                <label>
+                  Panjang sisi b
+                  <input
+                    type="number"
+                    min="0"
+                    value={b}
+                    onChange={e => setB(e.target.value)}
+                    placeholder="Contoh: 8"
+                  />
+                </label>
+
+                <button
+                  className="calculate-button"
+                  onClick={calculate}
+                >
+                  Hitung sisi miring
+                </button>
+
+                {result !== null && (
+                  <div className="result-box">
+                    <small>HASIL PERHITUNGAN</small>
+                    <strong>c = {result}</strong>
+                    <p>c = √(a² + b²)</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* REFLEKSI */}
+          {page === "refleksi" && (
+            <section>
+              <div className="eyebrow">REFLECTION · 06</div>
+              <h2>Refleksi <span>Belajarmu</span></h2>
+
+              <p className="lead">
+                Pikirkan kembali apa yang sudah kamu pahami.
+              </p>
+
+              <div className="reflection-grid">
+
+                <div className="reflection-card">
+                  <strong>01</strong>
+                  <h3>Apa yang sudah kupahami?</h3>
+                  <textarea rows={6} placeholder="Tuliskan pemahamanmu..." />
+                </div>
+
+                <div className="reflection-card">
+                  <strong>02</strong>
+                  <h3>Bagian mana yang masih sulit?</h3>
+                  <textarea
+                    rows={6}
+                    placeholder="Tuliskan bagian yang masih membingungkan..."
+                  />
+                </div>
+
+                <div className="reflection-card">
+                  <strong>03</strong>
+                  <h3>Strategi apa yang membantuku?</h3>
+                  <textarea
+                    rows={6}
+                    placeholder="Tuliskan strategi yang kamu gunakan..."
+                  />
+                </div>
+
+              </div>
+            </section>
+          )}
+
+        </main>
       </div>
-    </main>
-  );
-}
-
-function LearningPage({
-  eyebrow,
-  title,
-  subtitle,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <div className="page-title">
-        <span className="eyebrow">{eyebrow}</span>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
-      </div>
-
-      {children}
-    </>
-  );
-}
-
-function QuestionBox({
-  question,
-  answer,
-  onAnswer,
-  showExplanation,
-}: {
-  question: Question;
-  answer: number | null;
-  onAnswer: (index: number) => void;
-  showExplanation: boolean;
-}) {
-  return (
-    <div className="question-card">
-      <span className="eyebrow">THINK & REASON</span>
-
-      <h2>{question.question}</h2>
-
-      <div className="options">
-        {question.options.map((option, index) => {
-          let className = "option";
-
-          if (answer !== null) {
-            if (index === question.answer) {
-              className += " correct";
-            } else if (index === answer) {
-              className += " wrong";
-            }
-          }
-
-          return (
-            <button
-              key={option}
-              className={className}
-              onClick={() => onAnswer(index)}
-              disabled={answer !== null}
-            >
-              <span>{String.fromCharCode(65 + index)}</span>
-              {option}
-            </button>
-          );
-        })}
-      </div>
-
-      {showExplanation && (
-        <div className="explanation">
-          <strong>Pembahasan</strong>
-          <p>{question.explanation}</p>
-        </div>
-      )}
     </div>
   );
 }
