@@ -1203,3 +1203,159 @@ body,
     flex-shrink: 0;
   }
 }
+
+/* =====================================
+   GEOLINE 3D DESIGN ENHANCEMENT
+   ===================================== */
+
+:root {
+  --shadow-3d:
+    0 8px 0 #e5d8e9,
+    0 13px 24px rgba(91, 65, 105, 0.13);
+}
+
+/* Kartu utama */
+.hero,
+.rmt-path,
+.progress-card,
+.test-info,
+.question-card,
+.concept-card,
+.discovery-card,
+.explorer,
+.pattern-card,
+.calculator,
+.game-start,
+.reflection-card,
+.final-card,
+.ai-tutor-card {
+  box-shadow: var(--shadow-3d);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+/* Efek kartu terangkat */
+.path-card,
+.concept-grid > div,
+.reflection-card {
+  box-shadow:
+    0 5px 0 #e8dce9,
+    0 9px 18px rgba(91, 65, 105, .10);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.path-card:hover,
+.concept-grid > div:hover,
+.reflection-card:hover {
+  transform: translateY(-7px);
+  box-shadow:
+    0 10px 0 #e5d6e9,
+    0 18px 25px rgba(91, 65, 105, .15);
+}
+
+/* Tombol 3D */
+.primary-button,
+.ai-ask-button,
+.side-link,
+.option {
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.primary-button,
+.ai-ask-button {
+  box-shadow: 0 5px 0 #715d83,
+              0 8px 15px rgba(91, 65, 105, .15);
+}
+
+.primary-button:hover:not(:disabled),
+.ai-ask-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 #715d83,
+              0 13px 20px rgba(91, 65, 105, .18);
+}
+
+.primary-button:active,
+.ai-ask-button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #715d83;
+}
+
+/* Sidebar */
+.side-link.active {
+  box-shadow: 0 4px 0 #dfd1e5;
+  transform: translateY(-2px);
+}
+
+/* Segitiga Pythagoras */
+.hero-triangle svg,
+.large-triangle svg {
+  overflow: visible;
+  filter: drop-shadow(8px 12px 7px rgba(91, 65, 105, .20));
+  transition: transform .35s ease;
+}
+
+.hero-triangle:hover svg,
+.large-triangle:hover svg {
+  transform: perspective(700px) rotateY(-8deg) rotateX(5deg);
+}
+
+/* Formula */
+.formula,
+.equations span,
+.calculator-result {
+  box-shadow:
+    0 5px 0 #e2d4e9,
+    0 9px 16px rgba(91, 65, 105, .10);
+}
+
+/* Pilihan jawaban */
+.option:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 0 #e3d6e9;
+}
+
+/* Tutor Pintar */
+.ai-tutor-card {
+  box-shadow:
+    0 8px 0 #e8dce9,
+    0 15px 30px rgba(91, 65, 105, .12);
+}
+
+.ai-avatar {
+  box-shadow: 0 5px 0 #d6c4df;
+}
+
+/* Progress */
+.progress-card > strong {
+  text-shadow: 2px 3px 0 #e8d9eb;
+}
+
+/* Efek 3D tetap nyaman di HP */
+@media (max-width: 768px) {
+  .hero,
+  .rmt-path,
+  .progress-card,
+  .test-info,
+  .question-card,
+  .concept-card,
+  .discovery-card,
+  .explorer,
+  .pattern-card,
+  .calculator,
+  .game-start,
+  .reflection-card,
+  .final-card,
+  .ai-tutor-card {
+    box-shadow: 0 5px 15px rgba(91, 65, 105, .10);
+  }
+}
+
+/* TES CSS GEOLINE */
+body {
+  outline: 8px solid red !important;
+}
+
+.hero {
+  background: #ffe0eb !important;
+  box-shadow: 0 15px 0 #c58ba8 !important;
+  transform: translateY(-5px);
+}
