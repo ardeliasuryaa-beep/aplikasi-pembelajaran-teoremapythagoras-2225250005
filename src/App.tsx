@@ -121,11 +121,11 @@ function App() {
     { id: "materi", icon: "▤", label: "Materi Belajar" },
     { id: "eksplorasi", icon: "△", label: "Eksplorasi" },
     { id: "latihan", icon: "✎", label: "Latihan Soal" },
+    { id: "tutor", icon: "✦", label: "Tutor Pintar" },
     { id: "kalkulator", icon: "＋", label: "Kalkulator" },
     { id: "game", icon: "✦", label: "Game Tantangan" },
     { id: "posttest", icon: "✓", label: "Post-Test" },
     { id: "refleksi", icon: "♡", label: "Refleksi" },
-    { id: "tutor", icon: "✦", label: "Tutor Pintar" },
   ] as const;
 
   const startApp = () => {
@@ -815,47 +815,124 @@ function App() {
   );
 
 
+  // Tutor lokal: memahami pertanyaan konsep dan menghitung sisi Pythagoras.
+  // Tidak menggunakan API key atau koneksi layanan AI eksternal.
   const answerTutorQuestion = (raw: string): string => {
-    const q = raw.toLowerCase().replace(/[?!.,]/g, " ").replace(/\s+/g, " ").trim();
+    const q = raw.toLowerCase().replace(/,/g, ".").replace(/\s+/g, " ").trim();
     const has = (...words: string[]) => words.some((word) => q.includes(word));
 
     if (has("halo", "hai", "assalamualaikum")) {
-      return "Halo juga! 🌷 Apa yang ingin kamu pelajari tentang Teorema Pythagoras?";
+      return "Halo juga! 🌷 Apa yang ingin kamu pelajari tentang Teorema Pythagoras? Kamu boleh bertanya konsep atau mengirim angka pada soalmu.";
     }
     if (has("terima kasih", "makasih", "thanks")) {
-      return "Sama-sama! Tetap semangat belajar ya. Yang penting bukan hanya hasil akhirnya, tetapi juga memahami langkah penyelesaiannya. 💗";
+      return "Sama-sama! 💗 Tetap semangat belajar. Ingat, pahami juga alasan di balik setiap langkah perhitungan ya.";
     }
+
+    // Ambil nilai yang ditulis bersama label a, b, atau c.
+    const readLabeledValue = (side: "a" | "b" | "c"): number | null => {
+      const patterns = [
+        new RegExp(`(?:sisi\\s*)?${side}\\s*(?:=|adalah|:)?\\s*(\\d+(?:\\.\\d+)?)`, "i"),
+        new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(?:cm|m)?\\s*(?:untuk\\s*)?sisi\\s*${side}`, "i"),
+      ];
+      for (const pattern of patterns) {
+        const match = q.match(pattern);
+        if (match) {
+          const value = Number(match[1]);
+          if (Number.isFinite(value) && value > 0) return value;
+        }
+      }
+      return null;
+    };
+
+    let sideA = readLabeledValue("a");
+    let sideB = readLabeledValue("b");
+    let sideC = readLabeledValue("c");
+
+    // Jika label tidak ditulis, dua angka pada pertanyaan hitung Pythagoras
+    // ditafsirkan sebagai dua sisi siku-siku (a dan b).
+    const numberMatches = [...q.matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+    const asksCalculation = has("berapa", "hitung", "cari", "tentukan", "panjang", "nilai", "hasil", "jawab", "diagonal", "sisi miring", "hipotenusa", "siku-siku");
+
+    if (sideA === null && sideB === null && sideC === null && asksCalculation && numberMatches.length === 2) {
+      sideA = numberMatches[0];
+      sideB = numberMatches[1];
+    } else if (sideA !== null && sideB === null && sideC === null && numberMatches.length >= 2) {
+      const other = numberMatches.find((value) => value !== sideA);
+      if (other !== undefined && has("b", "sisi siku", "siku-siku")) sideB = other;
+    } else if (sideB !== null && sideA === null && sideC === null && numberMatches.length >= 2) {
+      const other = numberMatches.find((value) => value !== sideB);
+      if (other !== undefined && has("a", "sisi siku", "siku-siku")) sideA = other;
+    }
+
+    if (sideA !== null && sideB !== null && sideC === null && asksCalculation) {
+      const sumSquares = sideA ** 2 + sideB ** 2;
+      const hypotenuse = Math.sqrt(sumSquares);
+      const result = Number(hypotenuse.toFixed(2));
+      return (
+        "Yuk, kita hitung bersama! 🌷\n\n" +
+        `Diketahui:\na = ${sideA}\nb = ${sideB}\n\n` +
+        "Karena yang dicari sisi miring (c), gunakan rumus:\n" +
+        "c² = a² + b²\n\n" +
+        `c² = ${sideA}² + ${sideB}²\n` +
+        `c² = ${sideA ** 2} + ${sideB ** 2}\n` +
+        `c² = ${sumSquares}\n\n` +
+        `c = √${sumSquares}\n` +
+        `c = ${result}\n\n` +
+        `Jadi, panjang sisi miringnya adalah ${result}.` +
+        (Number.isInteger(hypotenuse) ? "" : " Hasil dibulatkan menjadi dua angka di belakang koma.") +
+        "\n\nCoba jelaskan: mengapa hasil penjumlahan kuadrat harus diakarkan?"
+      );
+    }
+
+    // Mencari salah satu sisi siku-siku jika sisi miring dan sisi lainnya diketahui.
+    if (sideC !== null && ((sideA !== null && sideB === null) || (sideB !== null && sideA === null)) && asksCalculation) {
+      const knownLeg = sideA ?? sideB!;
+      if (sideC <= knownLeg) {
+        return "Periksa kembali angkanya ya. Sisi miring (c) harus lebih panjang daripada setiap sisi siku-siku.";
+      }
+      const difference = sideC ** 2 - knownLeg ** 2;
+      const missing = Math.sqrt(difference);
+      const label = sideA !== null ? "b" : "a";
+      const result = Number(missing.toFixed(2));
+      return (
+        "Kita cari sisi siku-siku yang belum diketahui. 🌷\n\n" +
+        `Diketahui c = ${sideC} dan ${sideA !== null ? "a" : "b"} = ${knownLeg}.\n` +
+        `Rumus: ${label}² = c² − ${sideA !== null ? "a" : "b"}²\n` +
+        `${label}² = ${sideC}² − ${knownLeg}²\n` +
+        `${label}² = ${sideC ** 2} − ${knownLeg ** 2} = ${difference}\n` +
+        `${label} = √${difference} = ${result}\n\n` +
+        `Jadi, panjang sisi ${label} adalah ${result}.`
+      );
+    }
+
     if (has("apa itu", "pengertian", "definisi", "maksud")) {
-      return "Teorema Pythagoras adalah aturan yang menjelaskan hubungan panjang ketiga sisi segitiga siku-siku.\\n\\nRumusnya: a² + b² = c²\\n\\na dan b adalah sisi yang membentuk sudut 90°, sedangkan c adalah sisi miring atau hipotenusa.\\n\\nMenurutmu, mengapa aturan ini hanya digunakan pada segitiga siku-siku?";
+      return "Teorema Pythagoras adalah aturan yang menjelaskan hubungan panjang ketiga sisi segitiga siku-siku.\n\nRumusnya: a² + b² = c²\n\na dan b adalah dua sisi yang membentuk sudut 90°, sedangkan c adalah sisi miring yang berada di depan sudut 90°.\n\nTeorema ini hanya berlaku untuk segitiga siku-siku.";
     }
     if (has("sisi miring", "hipotenusa", "sisi terpanjang")) {
-      return "Sisi miring disebut juga hipotenusa. Sisi ini berada tepat di depan sudut 90° dan merupakan sisi terpanjang pada segitiga siku-siku.\\n\\nJika gambar segitiganya diputar, apakah letak sisi miring berubah? Ingat, tentukan berdasarkan sudut 90°, bukan arah gambar.";
+      return "Sisi miring disebut juga hipotenusa. Sisi ini berada tepat di depan sudut 90° dan merupakan sisi terpanjang pada segitiga siku-siku. Posisi gambar boleh diputar; cara mengenalinya tetap dengan melihat sisi yang berhadapan dengan sudut 90°.";
     }
     if (has("sisi a", "sisi b", "sisi siku", "membedakan sisi")) {
-      return "Sisi a dan b adalah dua sisi yang saling membentuk sudut 90°. Sisi c adalah sisi miring yang berada di depan sudut 90°.\\n\\nNama a dan b dapat bertukar, tetapi c tetap sisi miring. Coba tunjukkan dua sisi yang bertemu membentuk sudut siku-siku.";
+      return "Sisi a dan b adalah dua sisi yang saling membentuk sudut 90°. Sisi c adalah sisi miring yang berada di depan sudut 90°. Nama a dan b dapat bertukar, tetapi c tetap sisi miring.";
     }
     if (has("rumus", "a2", "b2", "c2")) {
-      return "Rumus Teorema Pythagoras adalah a² + b² = c².\\n\\n• a = sisi siku-siku pertama\\n• b = sisi siku-siku kedua\\n• c = sisi miring\\n\\nJika mencari c, kuadratkan a dan b, jumlahkan hasilnya, lalu akarkan.";
+      return "Rumus Teorema Pythagoras adalah a² + b² = c².\n\n• a = sisi siku-siku pertama\n• b = sisi siku-siku kedua\n• c = sisi miring\n\nUntuk mencari c, kuadratkan a dan b, jumlahkan hasilnya, lalu akarkan. Untuk mencari a atau b, kurangkan kuadrat sisi siku-siku yang diketahui dari kuadrat c, lalu akarkan.";
     }
     if (has("akar", "akar kuadrat", "sqrt")) {
-      return "Akar kuadrat merupakan kebalikan dari operasi kuadrat. Contohnya, √25 = 5 karena 5 × 5 = 25.\\n\\nDalam Pythagoras, akar digunakan setelah menjumlahkan kuadrat kedua sisi siku-siku. Berapa nilai √100 menurutmu?";
+      return "Akar kuadrat merupakan kebalikan dari operasi kuadrat. Contohnya, √25 = 5 karena 5 × 5 = 25. Dalam Pythagoras, akar digunakan setelah menjumlahkan kuadrat kedua sisi siku-siku untuk memperoleh panjang sisi miring.";
     }
     if (has("sudut", "90 derajat", "siku-siku")) {
-      return "Sudut siku-siku besarnya tepat 90°. Pada segitiga siku-siku, sisi a dan b membentuk sudut tersebut. Sisi yang berada di hadapannya adalah sisi miring.\\n\\nApakah besar sudut 90° berubah jika segitiga diputar?";
-    }
-    if (has("6") && has("8")) {
-      return "Mari kita kerjakan bersama! 🌷\\n\\nDiketahui a = 6 cm dan b = 8 cm.\\nRumus: c² = a² + b²\\nc² = 6² + 8²\\nc² = 36 + 64\\nc² = 100\\nc = √100 = 10 cm.\\n\\nJadi, panjang sisi miringnya 10 cm. Mengapa kita perlu mengakarkan 100 pada langkah terakhir?";
+      return "Sudut siku-siku besarnya tepat 90°. Pada segitiga siku-siku, dua sisi yang bertemu pada sudut tersebut adalah sisi siku-siku. Sisi yang berada di hadapannya adalah sisi miring.";
     }
     if (has("contoh", "soal", "latihan")) {
-      return "Coba soal ini! Sebuah segitiga siku-siku memiliki sisi siku-siku 5 cm dan 12 cm. Berapa panjang sisi miringnya?\\n\\nPetunjuk: c² = 5² + 12². Hitung kuadrat kedua sisi, jumlahkan, lalu cari akar kuadratnya. Tuliskan hasilmu, nanti kita periksa bersama.";
+      return "Coba soal ini! Sebuah segitiga siku-siku memiliki sisi siku-siku 5 cm dan 12 cm. Berapa panjang sisi miringnya?\n\nPetunjuk: c² = 5² + 12². Kuadratkan kedua sisi, jumlahkan, lalu akarkan hasilnya. Kamu juga bisa langsung mengirim pertanyaan dengan angka sisi a dan b.";
     }
     if (has("bingung", "sulit", "susah", "tidak paham", "gak paham", "nggak ngerti")) {
-      return "Tidak apa-apa, kita pelajari pelan-pelan. 💗\\n\\nMulai dari satu hal: segitiga siku-siku memiliki satu sudut 90°. Dua sisi yang membentuk sudut itu disebut sisi siku-siku. Sisi di depannya disebut sisi miring.\\n\\nBagian mana yang masih membingungkan: mengenali sisi, memahami rumus, atau menghitung?";
+      return "Tidak apa-apa, kita pelajari pelan-pelan. 💗 Segitiga siku-siku memiliki satu sudut 90°. Dua sisi yang membentuk sudut itu disebut sisi siku-siku, sedangkan sisi di depannya disebut sisi miring. Bagian mana yang masih membingungkan: mengenali sisi, memahami rumus, atau menghitung?";
     }
-    if (has("menghitung", "bagaimana", "cara", "langkah", "mencari")) {
-      return "Kita selesaikan bertahap ya!\\n\\n1. Catat panjang sisi yang diketahui.\\n2. Pastikan segitiganya siku-siku.\\n3. Tentukan sisi yang ingin dicari.\\n4. Pilih bentuk rumus yang sesuai.\\n5. Masukkan nilai ke rumus.\\n6. Hitung dan periksa kembali hasilnya.\\n\\nKirim angka pada soalmu agar kita bahas bersama.";
+    if (asksCalculation) {
+      return "Aku bisa membantu menghitung soal Pythagoras. Coba tuliskan nilai sisinya dengan jelas, misalnya: a = 5 cm dan b = 12 cm, lalu sebutkan sisi yang ingin dicari. Untuk mencari sisi miring, diperlukan dua sisi siku-siku; untuk mencari sisi siku-siku, diperlukan sisi miring dan satu sisi lainnya.";
     }
-    return "Pertanyaanmu menarik! 🌷 Tutor Pintar ini khusus membahas materi Teorema Pythagoras di GEOLINE. Kamu bisa bertanya tentang pengertian, segitiga siku-siku, sisi a/b/c, sisi miring, sudut 90°, rumus, akar kuadrat, atau contoh perhitungan. Coba ceritakan bagian yang ingin kamu pahami.";
+    return "Pertanyaanmu menarik! 🌷 Tutor Pintar ini khusus membahas Teorema Pythagoras di GEOLINE. Kamu bisa bertanya tentang segitiga siku-siku, sisi a/b/c, sisi miring, sudut 90°, rumus, akar kuadrat, atau mengirim angka untuk dihitung. Contoh: a = 5 cm dan b = 12 cm, berapa c?";
   };
 
   const sendTutorQuestion = () => {

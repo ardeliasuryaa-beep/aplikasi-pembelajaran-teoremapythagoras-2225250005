@@ -1036,3 +1036,170 @@ textarea:focus {
     font-size: 37px;
   }
 }
+/* =========================================
+   TUTOR PINTAR GEOLINE
+   ========================================= */
+.ai-tutor-card {
+  max-width: 900px;
+  padding: 26px;
+  border: 1px solid var(--border, #eee3ed);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(105, 77, 112, .07);
+}
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border, #eee3ed);
+}
+.ai-avatar {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #eac8d5, #d9c9e8);
+  color: #fff;
+  font-size: 25px;
+}
+.ai-header-copy { flex: 1; min-width: 0; }
+.ai-header h3 { margin: 0; color: #6a5577; }
+.ai-header p { margin: 5px 0 0; color: #8e8297; font-size: 12px; }
+.tutor-reset {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #eee3ed;
+  border-radius: 13px;
+  background: #f8f1f7;
+  color: #806b8e;
+  font-size: 22px;
+}
+.ai-guidance {
+  margin: 20px 0;
+  padding: 18px;
+  border-radius: 15px;
+  background: #f7eff6;
+  color: #806b8e;
+}
+.ai-guidance p { margin: 7px 0 0; font-size: 13px; line-height: 1.75; }
+.chat-messages {
+  max-height: 480px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 5px;
+}
+.chat-user, .chat-tutor {
+  max-width: 86%;
+  padding: 15px 17px;
+  border-radius: 17px;
+  animation: fadeIn .3s ease;
+}
+.chat-user {
+  align-self: flex-end;
+  background: #eee5f4;
+  color: #695477;
+  border-bottom-right-radius: 4px;
+}
+.chat-tutor {
+  align-self: flex-start;
+  background: #f8edf1;
+  color: #755d78;
+  border-bottom-left-radius: 4px;
+}
+.chat-messages strong { display: block; margin-bottom: 8px; font-size: 11px; }
+.chat-messages p { margin: 0; white-space: pre-line; font-size: 13px; line-height: 1.8; }
+.ai-label {
+  display: block;
+  margin: 15px 0 8px;
+  color: #806b8e;
+  font-size: 12px;
+  font-weight: 700;
+}
+.ai-tutor-card textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 14px;
+  border: 1px solid #e9dfea;
+  border-radius: 12px;
+  outline: none;
+  background: #fdfafd;
+  color: #51465d;
+  resize: vertical;
+}
+.ai-tutor-card textarea:focus {
+  border-color: #c7a8d3;
+  box-shadow: 0 0 0 3px #e8d9ed55;
+}
+.ai-ask-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(110deg, #e9c3d1, #d9c7e8);
+  color: #655170;
+  font-weight: 700;
+}
+.ai-ask-button:disabled { opacity: .5; cursor: not-allowed; }
+.ai-rmt { margin-top: 25px; }
+@media (max-width: 768px) {
+  .ai-tutor-card { padding: 18px; }
+  .chat-user, .chat-tutor { max-width: 95%; }
+}
+
+/* =====================================
+   FIX DESKTOP SCROLL GEOLINE
+   ===================================== */
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.geoline-app {
+  min-height: 100vh !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.geoline-layout {
+  min-height: calc(100vh - 130px) !important;
+  height: auto !important;
+  overflow: visible !important;
+  align-items: stretch;
+}
+
+.sidebar {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  align-self: stretch;
+}
+
+.main-content {
+  min-height: 100vh;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Desktop */
+@media (min-width: 769px) {
+  .geoline-layout {
+    display: flex;
+  }
+
+  .sidebar {
+    position: relative;
+    flex-shrink: 0;
+  }
+}
